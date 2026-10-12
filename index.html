@@ -1,12 +1,12 @@
 
-index.html
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M.R251 | تمرد بلا حدود</title>
+  <meta name="description" content="اقرأ كتاب تمرد بلا حدود للكاتب محمد عبد الحميد M.R251. كتاب عن التمرد الفكري والقيود والأقنعة واليقين.">
+  <title>تمرد بلا حدود | محمد عبد الحميد M.R251</title>
+
   <style>
     * { box-sizing: border-box; }
 
@@ -63,6 +63,11 @@ index.html
       background: #e2c783;
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
     #reader {
       display: none;
       margin: 25px auto;
@@ -84,6 +89,12 @@ index.html
       color: #d5b36a;
     }
 
+    #status {
+      margin: 10px;
+      color: #aaa;
+      font-size: 13px;
+    }
+
     footer {
       padding: 25px 12px;
       color: #777;
@@ -92,24 +103,37 @@ index.html
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="brand">M.R251</div>
     <h1>تمرد بلا حدود</h1>
     <div class="author">بقلم محمد عبد الحميد</div>
+
     <p class="intro">
       ليست كل القيود مرئية، وليست كل الثورات صاخبة.
       أحيانًا يبدأ التمرد بسؤالٍ تجرأت على طرحه.
     </p>
-    <button onclick="openBook()">قراءة الكتاب</button>
+
+    <button id="readButton" onclick="openBook()">
+      قراءة الكتاب
+    </button>
+
     <div class="counter">
-      عدد القراءات المسجلة: <span id="count">—</span>
+      عدد مرات فتح الكتاب:
+      <strong id="count">جارٍ التحميل...</strong>
     </div>
+
+    <div id="status" aria-live="polite"></div>
   </header>
 
   <main id="reader">
-    <iframe id="pdf" title="قراءة كتاب تمرد بلا حدود"
-      src="about:blank" allowfullscreen></iframe>
+    <iframe
+      id="pdf"
+      title="قراءة كتاب تمرد بلا حدود"
+      src="about:blank"
+      allowfullscreen>
+    </iframe>
   </main>
 
   <footer>
@@ -120,8 +144,25 @@ index.html
   <script>
     const PDF_FILE_ID = '1BN-r8batHnMfCbQ4FyEI6vAOCF9sjyfM';
 
-    function openBook() {
+    const COUNTER_URL =
+      'https://mr251-book-counter.vove5647.workers.dev/visit';
+
+    const countElement = document.getElementById('count');
+    const statusElement = document.getElementById('status');
+    const readButton = document.getElementById('readButton');
+
+    let currentCount = null;
+    let isOpening = false;
+
+    async function openBook() {
+      if (isOpening) return;
+
+      isOpening = true;
+      readButton.disabled = true;
+      statusElement.textContent = 'جارٍ فتح الكتاب...';
+
       document.getElementById('reader').style.display = 'block';
+
       document.getElementById('pdf').src =
         'https://drive.google.com/file/d/' +
         PDF_FILE_ID + '/preview';
@@ -129,6 +170,33 @@ index.html
       document.getElementById('reader').scrollIntoView({
         behavior: 'smooth'
       });
+
+      try {
+        const response = await fetch(COUNTER_URL, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error('تعذر تسجيل الزيارة');
+        }
+
+        const data = await response.json();
+
+        if (data.success && Number.isFinite(Number(data.visits))) {
+          currentCount = Number(data.visits);
+          countElement.textContent = currentCount.toLocaleString('ar-EG');
+          statusElement.textContent = 'تم تسجيل فتح الكتاب بنجاح.';
+        } else {
+          throw new Error('لم يتم تأكيد تسجيل الزيارة');
+        }
+      } catch (error) {
+        statusElement.textContent =
+          'الكتاب مفتوح، لكن تعذر تحديث العداد. حاول مرة أخرى لاحقًا.';
+      } finally {
+        isOpening = false;
+        readButton.disabled = false;
+      }
     }
   </script>
 </body>
