@@ -3,8 +3,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="اقرأ كتاب تمرد بلا حدود للكاتب محمد عبد الحميد M.R251. كتاب عن التمرد الفكري والقيود والأقنعة واليقين.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="اقرأ كتاب تمرد بلا حدود للكاتب محمد عبد الحميد M.R251.">
+  <meta name="theme-color" content="#0b0b0b">
+
   <title>تمرد بلا حدود | محمد عبد الحميد M.R251</title>
 
   <style>
@@ -59,9 +61,7 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: #e2c783;
-    }
+    button:hover { background: #e2c783; }
 
     button:disabled {
       opacity: 0.7;
@@ -76,6 +76,7 @@
     }
 
     iframe {
+      display: block;
       width: 100%;
       height: 75vh;
       min-height: 450px;
@@ -90,6 +91,7 @@
     }
 
     #status {
+      min-height: 20px;
       margin: 10px;
       color: #aaa;
       font-size: 13px;
@@ -100,6 +102,13 @@
       color: #777;
       border-top: 1px solid #292929;
       font-size: 13px;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 24px 12px; }
+      h1 { font-size: 23px; }
+      iframe { height: 70vh; min-height: 400px; }
     }
   </style>
 </head>
@@ -115,7 +124,7 @@
       أحيانًا يبدأ التمرد بسؤالٍ تجرأت على طرحه.
     </p>
 
-    <button id="readButton" onclick="openBook()">
+    <button id="readButton" type="button">
       قراءة الكتاب
     </button>
 
@@ -124,7 +133,7 @@
       <strong id="count">جارٍ التحميل...</strong>
     </div>
 
-    <div id="status" aria-live="polite"></div>
+    <div id="status" role="status" aria-live="polite"></div>
   </header>
 
   <main id="reader">
@@ -142,62 +151,122 @@
   </footer>
 
   <script>
-    const PDF_FILE_ID = '1BN-r8batHnMfCbQ4FyEI6vAOCF9sjyfM';
+    "use strict";
+
+    const PDF_FILE_ID =
+      "1BN-r8batHnMfCbQ4FyEI6vAOCF9sjyfM";
 
     const COUNTER_URL =
-      'https://mr251-book-counter.vove5647.workers.dev/visit';
+      "https://mr251-book-counter.vove5647.workers.dev";
 
-    const countElement = document.getElementById('count');
-    const statusElement = document.getElementById('status');
-    const readButton = document.getElementById('readButton');
+    const countElement = document.getElementById("count");
+    const statusElement = document.getElementById("status");
+    const readButton = document.getElementById("readButton");
+    const readerElement = document.getElementById("reader");
+    const pdfElement = document.getElementById("pdf");
 
-    let currentCount = null;
     let isOpening = false;
+    let updateSequence = 0;
+
+    function showCount(value) {
+      const count = Number(value);
+
+      if (Number.isSafeInteger(count) && count >= 0) {
+        countElement.textContent = count.toLocaleString("ar-EG");
+      }
+    }
+
+    async function loadCount() {
+      const sequence = ++updateSequence;
+
+      try {
+        const response = await fetch(
+          COUNTER_URL + "/count",
+          { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+          throw new Error("Counter request failed");
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !Number.isSafeInteger(Number(data.visits))) {
+          throw new Error("Invalid counter response");
+        }
+
+        if (sequence === updateSequence) {
+          showCount(data.visits);
+          statusElement.textContent = "";
+        }
+      } catch (error) {
+        if (sequence === updateSequence) {
+          countElement.textContent = "غير متاح";
+          statusElement.textContent =
+            "تعذر تحميل العداد. يمكنك قراءة الكتاب.";
+        }
+      }
+    }
 
     async function openBook() {
       if (isOpening) return;
 
       isOpening = true;
       readButton.disabled = true;
-      statusElement.textContent = 'جارٍ فتح الكتاب...';
+      statusElement.textContent = "جارٍ تسجيل الزيارة...";
 
-      document.getElementById('reader').style.display = 'block';
+      readerElement.style.display = "block";
 
-      document.getElementById('pdf').src =
-        'https://drive.google.com/file/d/' +
-        PDF_FILE_ID + '/preview';
+      pdfElement.src =
+        "https://drive.google.com/file/d/" +
+        PDF_FILE_ID + "/preview";
 
-      document.getElementById('reader').scrollIntoView({
-        behavior: 'smooth'
+      readerElement.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
       });
 
+      const sequence = ++updateSequence;
+
       try {
-        const response = await fetch(COUNTER_URL, {
-          method: 'GET',
-          cache: 'no-store'
-        });
+        const response = await fetch(
+          COUNTER_URL + "/visit",
+          { cache: "no-store" }
+        );
 
         if (!response.ok) {
-          throw new Error('تعذر تسجيل الزيارة');
+          throw new Error("Visit request failed");
         }
 
         const data = await response.json();
 
-        if (data.success && Number.isFinite(Number(data.visits))) {
-          currentCount = Number(data.visits);
-          countElement.textContent = currentCount.toLocaleString('ar-EG');
-          statusElement.textContent = 'تم تسجيل فتح الكتاب بنجاح.';
-        } else {
-          throw new Error('لم يتم تأكيد تسجيل الزيارة');
+        if (
+          data.success !== true ||
+          !Number.isSafeInteger(Number(data.visits)) ||
+          Number(data.visits) < 1
+        ) {
+          throw new Error("Invalid visit response");
+        }
+
+        if (sequence === updateSequence) {
+          showCount(data.visits);
+          statusElement.textContent =
+            "تم تسجيل فتح الكتاب بنجاح.";
         }
       } catch (error) {
-        statusElement.textContent =
-          'الكتاب مفتوح، لكن تعذر تحديث العداد. حاول مرة أخرى لاحقًا.';
+        if (sequence === updateSequence) {
+          statusElement.textContent =
+            "الكتاب مفتوح، لكن تعذر تحديث العداد.";
+        }
       } finally {
         isOpening = false;
         readButton.disabled = false;
       }
     }
+
+    readButton.addEventListener("click", openBook);
+
+    loadCount();
   </script>
 </body>
 </html>
